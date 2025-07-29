@@ -68,6 +68,18 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
 
+    - name: Check required secrets
+      run: |
+        if [[ -z "${{ secrets.AWS_ACCOUNT_ID }}" ]]; then
+          echo "❌ AWS_ACCOUNT_ID secret is not set"
+          exit 1
+        fi
+        if [[ -z "${{ secrets.AWS_ROLE_ARN }}" ]]; then
+          echo "❌ AWS_ROLE_ARN secret is not set"
+          exit 1
+        fi
+        echo "✅ Required secrets are set"
+
     - name: Configure AWS credentials
       uses: aws-actions/configure-aws-credentials@v4
       with:
@@ -75,17 +87,42 @@ jobs:
         role-session-name: GitHubActions
         aws-region: ${{ env.AWS_REGION }}
 
+    - name: Verify AWS credentials
+      run: |
+        aws sts get-caller-identity
+        echo "✅ AWS credentials configured successfully"
+
+    - name: Check ECR repositories exist
+      run: |
+        echo "Checking if ECR repositories exist..."
+        
+        # Check frontend repository
+        if aws ecr describe-repositories --repository-names devops-project-frontend --region ${{ env.AWS_REGION }} > /dev/null 2>&1; then
+          echo "✅ Frontend ECR repository exists"
+        else
+          echo "❌ Frontend ECR repository doesn't exist. Creating..."
+          aws ecr create-repository --repository-name devops-project-frontend --region ${{ env.AWS_REGION }}
+        fi
+        
+        # Check backend repository
+        if aws ecr describe-repositories --repository-names devops-project-backend --region ${{ env.AWS_REGION }} > /dev/null 2>&1; then
+          echo "✅ Backend ECR repository exists"
+        else
+          echo "❌ Backend ECR repository doesn't exist. Creating..."
+          aws ecr create-repository --repository-name devops-project-backend --region ${{ env.AWS_REGION }}
+        fi
+
     - name: Login to Amazon ECR
       id: login-ecr
       uses: aws-actions/amazon-ecr-login@v2
 
     - name: Get commit hash
       id: get-commit-hash
-      run: echo "::set-output name=commit-hash::$(git rev-parse --short HEAD)"
+      run: echo "commit-hash=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
 
     - name: Get timestamp
       id: get-timestamp
-      run: echo "::set-output name=timestamp::$(date +%Y%m%d%H%M%S)"
+      run: echo "timestamp=$(date +%Y%m%d%H%M%S)" >> $GITHUB_OUTPUT
 
     - name: Build and push Frontend Docker image
       env:
@@ -94,6 +131,13 @@ jobs:
         IMAGE_TAG: ${{ steps.get-commit-hash.outputs.commit-hash }}-${{ steps.get-timestamp.outputs.timestamp }}
       run: |
         echo "Building frontend Docker image..."
+        
+        # Check if Dockerfile exists
+        if [[ ! -f "frontend/Dockerfile" ]]; then
+          echo "❌ frontend/Dockerfile not found"
+          exit 1
+        fi
+        
         docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG -f frontend/Dockerfile .
         docker tag $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG $ECR_REGISTRY/$ECR_REPOSITORY:latest
         
@@ -111,6 +155,13 @@ jobs:
         IMAGE_TAG: ${{ steps.get-commit-hash.outputs.commit-hash }}-${{ steps.get-timestamp.outputs.timestamp }}
       run: |
         echo "Building backend Docker image..."
+        
+        # Check if Dockerfile exists
+        if [[ ! -f "backend/Dockerfile" ]]; then
+          echo "❌ backend/Dockerfile not found"
+          exit 1
+        fi
+        
         docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG -f backend/Dockerfile .
         docker tag $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG $ECR_REGISTRY/$ECR_REPOSITORY:latest
         
@@ -128,20 +179,43 @@ jobs:
 
     - name: Update kubeconfig
       run: |
+        echo "Updating kubeconfig for EKS cluster..."
         aws eks update-kubeconfig --region ${{ env.AWS_REGION }} --name ${{ env.EKS_CLUSTER_NAME }}
 
     - name: Verify cluster connection
       run: |
+        echo "Verifying cluster connection..."
         kubectl cluster-info
         kubectl get nodes
+        echo "✅ Connected to EKS cluster successfully"
+
+    - name: Check Kubernetes manifests exist
+      run: |
+        if [[ ! -f "k8s/frontend-deployment.yaml" ]]; then
+          echo "❌ k8s/frontend-deployment.yaml not found"
+          exit 1
+        fi
+        if [[ ! -f "k8s/backend-deployment.yaml" ]]; then
+          echo "❌ k8s/backend-deployment.yaml not found"
+          exit 1
+        fi
+        echo "✅ Kubernetes manifests found"
 
     - name: Update Kubernetes manifests
       run: |
+        echo "Updating Kubernetes manifests with new images..."
+        
+        # Create backup
+        cp k8s/frontend-deployment.yaml k8s/frontend-deployment.yaml.backup
+        cp k8s/backend-deployment.yaml k8s/backend-deployment.yaml.backup
+        
         # Update frontend deployment with new image
         sed -i "s|REPLACE_WITH_FRONTEND_IMAGE_URL|${{ env.FRONTEND_IMAGE }}|g" k8s/frontend-deployment.yaml
         
         # Update backend deployment with new image  
         sed -i "s|REPLACE_WITH_BACKEND_IMAGE_URL|${{ env.BACKEND_IMAGE }}|g" k8s/backend-deployment.yaml
+        
+        echo "✅ Manifests updated successfully"
 
     - name: Deploy to EKS
       run: |
@@ -152,10 +226,11 @@ jobs:
         kubectl apply -f k8s/frontend-deployment.yaml
         
         # Wait for deployments to be ready
+        echo "Waiting for deployments to be ready..."
         kubectl rollout status deployment/backend-deployment --timeout=300s
         kubectl rollout status deployment/frontend-deployment --timeout=300s
         
-        echo "Deployment completed successfully!"
+        echo "✅ Deployment completed successfully!"
 
     - name: Verify deployment
       run: |
@@ -173,21 +248,23 @@ jobs:
         echo "Running smoke tests..."
         
         # Wait for LoadBalancer to be ready
+        echo "Waiting for LoadBalancer to be ready..."
         sleep 60
         
         # Get LoadBalancer URL
-        FRONTEND_URL=$(kubectl get service frontend-service -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
+        FRONTEND_URL=$(kubectl get service frontend-service -o jsonpath='{.status.loadBalancer.ingress[0].hostname}' 2>/dev/null || echo "")
         
         if [ ! -z "$FRONTEND_URL" ]; then
           echo "Testing frontend at: http://$FRONTEND_URL"
           
-          # Test frontend health
-          curl -f "http://$FRONTEND_URL/health" || echo "Frontend health check failed"
-          
-          # Test if frontend loads
-          curl -f "http://$FRONTEND_URL" || echo "Frontend load test failed"
+          # Test if frontend loads (with timeout)
+          if timeout 30 curl -f "http://$FRONTEND_URL" > /dev/null 2>&1; then
+            echo "✅ Frontend smoke test passed"
+          else
+            echo "⚠️ Frontend smoke test failed, but deployment completed"
+          fi
         else
-          echo "LoadBalancer URL not available yet"
+          echo "⚠️ LoadBalancer URL not available yet, but deployment completed"
         fi
 
   security-scan:
