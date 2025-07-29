@@ -1,0 +1,197 @@
+# Admin user configuration
+admin:
+  existingSecret: grafana-admin-secret
+  userKey: admin-user
+  passwordKey: admin-password
+
+# Service configuration
+service:
+  type: LoadBalancer
+  port: 80
+  targetPort: 3000
+  annotations:
+    service.beta.kubernetes.io/aws-load-balancer-type: nlb
+
+# Persistence (optional, safe to keep)
+persistence:
+  enabled: false
+  size: 1Gi
+  storageClassName: gp3
+  accessModes:
+    - ReadWriteOnce
+
+# Resource limits
+resources:
+  limits:
+    cpu: 100m
+    memory: 128Mi
+  requests:
+    cpu: 100m
+    memory: 128Mi
+
+# Grafana configuration
+grafana.ini:
+  server:
+    domain: localhost
+    root_url: "%(protocol)s://%(domain)s:%(http_port)s/"
+    serve_from_sub_path: false
+  security:
+    allow_embedding: true
+  auth.anonymous:
+    enabled: false
+  log:
+    mode: console
+    level: info
+  paths:
+    data: /var/lib/grafana/
+    logs: /var/log/grafana
+    plugins: /var/lib/grafana/plugins
+    provisioning: /etc/grafana/provisioning
+
+# Data sources
+datasources:
+  datasources.yaml:
+    apiVersion: 1
+    datasources:
+      - name: Prometheus
+        type: prometheus
+        url: http://prometheus-server:80
+        access: proxy
+        isDefault: true
+        editable: true
+
+# Dashboard providers
+dashboardProviders:
+  dashboardproviders.yaml:
+    apiVersion: 1
+    providers:
+      - name: 'default'
+        orgId: 1
+        folder: ''
+        type: file
+        disableDeletion: false
+        editable: true
+        options:
+          path: /var/lib/grafana/dashboards/default
+
+# Preconfigured dashboards
+dashboards:
+  default:
+    kubernetes-cluster-monitoring:
+      gnetId: 315
+      revision: 3
+      datasource: Prometheus
+    kubernetes-pod-monitoring:
+      gnetId: 6417
+      revision: 1
+      datasource: Prometheus
+    node-exporter:
+      gnetId: 1860
+      revision: 27
+      datasource: Prometheus
+    kubernetes-deployment:
+      gnetId: 8588
+      revision: 1
+      datasource: Prometheus
+
+# Custom dashboard (inline JSON)
+dashboardsFiles:
+  custom-app-dashboard.json: |
+    {
+      "dashboard": {
+        "id": null,
+        "title": "DevOps Application Dashboard",
+        "tags": ["devops", "kubernetes"],
+        "timezone": "browser",
+        "panels": [
+          {
+            "id": 1,
+            "title": "Frontend Requests per Second",
+            "type": "graph",
+            "targets": [
+              {
+                "expr": "rate(http_requests_total{job=\"frontend-app\"}[5m])",
+                "refId": "A"
+              }
+            ],
+            "xAxis": { "show": true },
+            "yAxes": [{ "label": "requests/sec", "show": true }],
+            "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 }
+          },
+          {
+            "id": 2,
+            "title": "Backend Response Time",
+            "type": "graph",
+            "targets": [
+              {
+                "expr": "histogram_quantile(0.95, rate(http_request_duration_seconds_bucket{job=\"backend-app\"}[5m]))",
+                "refId": "A"
+              }
+            ],
+            "yAxes": [{ "label": "seconds", "show": true }],
+            "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 }
+          },
+          {
+            "id": 3,
+            "title": "Pod CPU Usage",
+            "type": "graph",
+            "targets": [
+              {
+                "expr": "rate(container_cpu_usage_seconds_total{pod=~\"frontend-.*|backend-.*\"}[5m]) * 100",
+                "refId": "A"
+              }
+            ],
+            "yAxes": [{ "label": "percent", "show": true }],
+            "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 }
+          },
+          {
+            "id": 4,
+            "title": "Pod Memory Usage",
+            "type": "graph",
+            "targets": [
+              {
+                "expr": "container_memory_usage_bytes{pod=~\"frontend-.*|backend-.*\"} / 1024 / 1024",
+                "refId": "A"
+              }
+            ],
+            "yAxes": [{ "label": "MB", "show": true }],
+            "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 }
+          }
+        ],
+        "time": { "from": "now-1h", "to": "now" },
+        "refresh": "30s"
+      }
+    }
+
+# Security context
+securityContext:
+  runAsUser: 472
+  runAsGroup: 472
+  fsGroup: 472
+
+# Environment variables
+env:
+  GF_RENDERING_SERVER_URL: http://renderer:8081/render
+  GF_RENDERING_CALLBACK_URL: http://grafana:3000/
+  GF_LOG_FILTERS: rendering:debug
+
+# Plugins to install
+plugins:
+  - grafana-clock-panel
+  - grafana-simple-json-datasource
+  - grafana-worldmap-panel
+  - grafana-piechart-panel
+
+# SMTP configuration (disabled by default)
+smtp:
+  enabled: false
+  host: localhost:587
+  user: ""
+  password: ""
+  fromAddress: admin@grafana.localhost
+  fromName: Grafana
+
+# Image renderer (disabled)
+imageRenderer:
+  enabled: false
+

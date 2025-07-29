@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DevOps Project Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .container {
+            background: rgba(255, 255, 255, 0.95);
+            padding: 2rem;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            text-align: center;
+            max-width: 600px;
+            width: 90%;
+        }
+        
+        h1 {
+            color: #333;
+            margin-bottom: 1rem;
+            font-size: 2.5rem;
+        }
+        
+        .subtitle {
+            color: #666;
+            margin-bottom: 2rem;
+            font-size: 1.2rem;
+        }
+        
+        .message-container {
+            background: #f8f9fa;
+            padding: 1.5rem;
+            border-radius: 10px;
+            margin: 2rem 0;
+            border-left: 4px solid #667eea;
+        }
+        
+        #api-message {
+            font-size: 1.1rem;
+            color: #333;
+            font-weight: 500;
+        }
+        
+        .loading {
+            color: #999;
+            font-style: italic;
+        }
+        
+        .error {
+            color: #e74c3c;
+        }
+        
+        .success {
+            color: #27ae60;
+        }
+        
+        .refresh-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: transform 0.3s ease;
+        }
+        
+        .refresh-btn:hover {
+            transform: translateY(-2px);
+        }
+        
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+        
+        .status-online {
+            background-color: #27ae60;
+        }
+        
+        .status-offline {
+            background-color: #e74c3c;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 DevOps Project</h1>
+        <p class="subtitle">Full-Stack Application with EKS Deployment</p>
+        
+        <div class="message-container">
+            <div id="api-message" class="loading">
+                <span class="status-indicator status-offline"></span>
+                Loading backend data...
+            </div>
+        </div>
+        
+        <button class="refresh-btn" onclick="fetchBackendMessage()">
+            🔄 Refresh Data
+        </button>
+        
+        <div style="margin-top: 2rem; font-size: 0.9rem; color: #888;">
+            <p>Frontend: Node.js + Express</p>
+            <p>Backend: Node.js API</p>
+            <p>Infrastructure: AWS EKS + Terraform</p>
+            <p>CI/CD: GitHub Actions</p>
+        </div>
+    </div>
+
+    <script>
+        async function fetchBackendMessage() {
+            const messageElement = document.getElementById('api-message');
+            const statusIndicator = messageElement.querySelector('.status-indicator');
+            
+            messageElement.innerHTML = '<span class="status-indicator status-offline"></span>Loading...';
+            messageElement.className = 'loading';
+            
+            try {
+                // Try to fetch from backend service
+                // In Kubernetes, this will be the backend service name
+                const backendUrl = window.location.hostname.includes('localhost') 
+                    ? 'http://localhost:8080' 
+                    : 'http://backend-service';
+                
+                const response = await fetch(`${backendUrl}/api/message`);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                messageElement.innerHTML = `<span class="status-indicator status-online"></span>${data.message}`;
+                messageElement.className = 'success';
+                
+            } catch (error) {
+                console.error('Failed to fetch backend data:', error);
+                messageElement.innerHTML = `<span class="status-indicator status-offline"></span>Backend service unavailable. Running in frontend-only mode.`;
+                messageElement.className = 'error';
+            }
+        }
+        
+        // Fetch data when page loads
+        document.addEventListener('DOMContentLoaded', fetchBackendMessage);
+        
+        // Auto-refresh every 30 seconds
+        setInterval(fetchBackendMessage, 30000);
+    </script>
+</body>
+</html>

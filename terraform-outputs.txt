@@ -1,0 +1,26 @@
+account_id = "605383993442"
+cluster_certificate_authority_data = "LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSURCVENDQWUyZ0F3SUJBZ0lJWFNlUHlRbmpRZkF3RFFZSktvWklodmNOQVFFTEJRQXdGVEVUTUJFR0ExVUUKQXhNS2EzVmlaWEp1WlhSbGN6QWVGdzB5TlRBM01qa3dOekV3TWpkYUZ3MHpOVEEzTWpjd056RTFNamRhTUJVeApFekFSQmdOVkJBTVRDbXQxWW1WeWJtVjBaWE13Z2dFaU1BMEdDU3FHU0liM0RRRUJBUVVBQTRJQkR3QXdnZ0VLCkFvSUJBUURKYWE2NnUyZTFZNTJhdmlkbjVtelFtbzhaZTVQZFBnS1EzU2M3TGk2ZzV4Qkg2WHRDMGF4bzBUd3cKUW95ZDUrdTBrUFcreXkwZmU4Ymp0dXBKbEtBaHBKRUR1RlRGVVNtOEVUczNqbkswSG1lUWFTT3VWdE1OMi9JcgptUHY3YXNrQlIwY2ZhOGp1VGFTRXNtRm1mSldWZ3ZBUnFMT0NTTDd4cjlDc08xcDJhNlRycTg5QkZKMzN0S2c3CnhBYWtlVm0rVm9ZZlhFY1BuM2c4eiszeFd6TWlwQzhyRFVkZWZkcGJyQkxtU2JDNjlXaTZEeHN2K0czOHl3WUgKQlc5LzF5V09EdnJadHFwRWNmTE9BRXMwWEpLVFZZQStaMi9kOGVTNTk4cWxHSUQzazBBMGR5NW5CT3pxaDNTVgpTOEpuNWRGUVhodE9jcVdNN1RhcHdPWnZUcUpMQWdNQkFBR2pXVEJYTUE0R0ExVWREd0VCL3dRRUF3SUNwREFQCkJnTlZIUk1CQWY4RUJUQURBUUgvTUIwR0ExVWREZ1FXQkJSS1dnazJFTzNZSXFYalM0bENvaHRBRHlSUkhEQVYKQmdOVkhSRUVEakFNZ2dwcmRXSmxjbTVsZEdWek1BMEdDU3FHU0liM0RRRUJDd1VBQTRJQkFRQ0hGeTdzN29LQQpYZE15clRNMkt4T01MMDArdHFEZkZwdnkrMVFMb2o0RWhLUWNNMkNNSnltdUNpVE1weDUvMGJOZmZzRWZXektZClNFQkMrMlplVVdJWk1ZZ3hVR1RtOG1CcHA0R3I2cG94VHd2bzNFdFp5N1VqMys0NXZyUkNFa3grTHQwc3MzRlYKTmluRExBSHFVZFZDUHcvRXNYbzgxMDFMd0dPdVBzOUdRb2tBbjk3VUtzRHU2NTNDM2Fpei9QbjRhWnlNRGx5RApQY0drY05vb3Z6UUdzWlVyK214a05qY1VsNXhiQzJjODZPQ0Q4dzd6NXc5MC9MS08yd2JoYk0rMCs1Vkd5QTJtCm13b2ZBMFhXblB0eDJCeWRtdFgxb1NDMERhcXY5SnZHMmxxR2pTOGdKd3JsdkZ2NDJTbTJrTXFvUlBzTVJFRGEKUlRjd3B4ZWpPSUtGCi0tLS0tRU5EIENFUlRJRklDQVRFLS0tLS0K"
+cluster_endpoint = "https://C377A90AC65DBAA835BC88B1EFFE2022.gr7.eu-west-2.eks.amazonaws.com"
+cluster_name = "devops-eks-cluster"
+cluster_oidc_issuer_url = "https://oidc.eks.eu-west-2.amazonaws.com/id/C377A90AC65DBAA835BC88B1EFFE2022"
+cluster_security_group_id = "sg-077c7dd33c24fb603"
+cluster_version = "1.33"
+ecr_backend_repository_url = "605383993442.dkr.ecr.eu-west-2.amazonaws.com/devops-project-backend"
+ecr_frontend_repository_url = "605383993442.dkr.ecr.eu-west-2.amazonaws.com/devops-project-frontend"
+ecr_login_command = "aws ecr get-login-password --region eu-west-2 | docker login --username AWS --password-stdin 605383993442.dkr.ecr.eu-west-2.amazonaws.com"
+github_actions_role_arn = "arn:aws:iam::605383993442:role/devops-project-github-actions-role"
+kubectl_config_command = "aws eks update-kubeconfig --region eu-west-2 --name devops-eks-cluster"
+node_group_arn = "arn:aws:eks:eu-west-2:605383993442:nodegroup/devops-eks-cluster/devops-eks-cluster-node-group/2acc2a86-8470-253b-4e15-27601d08c293"
+node_group_security_group_id = "sg-08101651db437ff8f"
+node_group_status = "ACTIVE"
+oidc_provider_arn = "arn:aws:iam::605383993442:oidc-provider/oidc.eks.eu-west-2.amazonaws.com/id/C377A90AC65DBAA835BC88B1EFFE2022"
+private_subnet_ids = [
+  "subnet-033470f9e5e01df19",
+  "subnet-07fb371757d84db26",
+]
+public_subnet_ids = [
+  "subnet-0a7a69f6356630093",
+  "subnet-05f46edae87e80c9f",
+]
+region = "eu-west-2"
+vpc_id = "vpc-01783d009621f2b61"
