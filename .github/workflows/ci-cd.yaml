@@ -204,16 +204,50 @@ jobs:
       with:
         version: 'v1.28.0'
 
+    - name: Verify EKS permissions
+      run: |
+        echo "Verifying EKS permissions..."
+        aws eks describe-cluster --name ${{ env.EKS_CLUSTER_NAME }} --region ${{ env.AWS_REGION }} --query 'cluster.status'
+        echo "✅ EKS permissions verified"
+
     - name: Update kubeconfig
       run: |
         echo "Updating kubeconfig for EKS cluster..."
         aws eks update-kubeconfig --region ${{ env.AWS_REGION }} --name ${{ env.EKS_CLUSTER_NAME }}
+        echo "✅ Kubeconfig updated successfully"
+        
+        # Debug: Show current context and config
+        echo "Current kubectl context:"
+        kubectl config current-context
+        echo "Current user info:"
+        kubectl config view --minify
 
     - name: Verify cluster connection
       run: |
         echo "Verifying cluster connection..."
+        
+        # First, let's see what identity we're using
+        echo "Current AWS identity:"
+        aws sts get-caller-identity
+        
+        # Check if we can authenticate to the cluster
+        echo "Testing kubectl authentication..."
+        if kubectl auth can-i get pods --all-namespaces; then
+          echo "✅ kubectl authentication successful"
+        else
+          echo "❌ kubectl authentication failed"
+          echo "This usually means the IAM role is not in the aws-auth ConfigMap"
+          exit 1
+        fi
+        
+        # Test cluster info
+        echo "Getting cluster info..."
         kubectl cluster-info
+        
+        # Test node access
+        echo "Getting nodes..."
         kubectl get nodes
+        
         echo "✅ Connected to EKS cluster successfully"
 
     - name: Check Kubernetes manifests exist
