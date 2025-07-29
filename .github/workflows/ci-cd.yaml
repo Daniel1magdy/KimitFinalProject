@@ -29,6 +29,21 @@ jobs:
           frontend/package-lock.json
           backend/package-lock.json
 
+    - name: Check for lock files
+      run: |
+        echo "Checking for package-lock.json files..."
+        if [[ ! -f "frontend/package-lock.json" ]]; then
+          echo "❌ frontend/package-lock.json not found"
+          echo "Please run 'npm install' in the frontend directory to generate it"
+          exit 1
+        fi
+        if [[ ! -f "backend/package-lock.json" ]]; then
+          echo "❌ backend/package-lock.json not found"
+          echo "Please run 'npm install' in the backend directory to generate it"
+          exit 1
+        fi
+        echo "✅ All package-lock.json files found"
+
     - name: Install Frontend Dependencies
       working-directory: ./frontend
       run: npm ci
@@ -138,7 +153,13 @@ jobs:
           exit 1
         fi
         
-        docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG -f frontend/Dockerfile .
+        # Check if package-lock.json exists for Docker build
+        if [[ ! -f "frontend/package-lock.json" ]]; then
+          echo "❌ frontend/package-lock.json not found - required for Docker build"
+          exit 1
+        fi
+        
+        docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG -f frontend/Dockerfile ./frontend
         docker tag $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG $ECR_REGISTRY/$ECR_REPOSITORY:latest
         
         echo "Pushing frontend Docker image..."
@@ -162,7 +183,13 @@ jobs:
           exit 1
         fi
         
-        docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG -f backend/Dockerfile .
+        # Check if package-lock.json exists for Docker build
+        if [[ ! -f "backend/package-lock.json" ]]; then
+          echo "❌ backend/package-lock.json not found - required for Docker build"
+          exit 1
+        fi
+        
+        docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG -f backend/Dockerfile ./backend
         docker tag $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG $ECR_REGISTRY/$ECR_REPOSITORY:latest
         
         echo "Pushing backend Docker image..."
