@@ -309,6 +309,62 @@ jobs:
         kubectl get deployments -o wide
         kubectl get pods -o wide
 
+    - name: Diagnose readiness probe issues
+      if: always()
+      run: |
+        echo "=== DIAGNOSING READINESS PROBE ISSUES ==="
+        
+        # Your pods are running but not ready, this is likely a readiness probe issue
+        echo "Checking readiness probe configuration and status..."
+        
+        echo "1. Backend deployment readiness probe config:"
+        kubectl get deployment backend-deployment -o jsonpath='{.spec.template.spec.containers[0].readinessProbe}' | jq '.' 2>/dev/null || echo "No readiness probe configured or jq not available"
+        
+        echo "2. Frontend deployment readiness probe config:"
+        kubectl get deployment frontend-deployment -o jsonpath='{.spec.template.spec.containers[0].readinessProbe}' | jq '.' 2>/dev/null || echo "No readiness probe configured or jq not available"
+        
+        echo "3. Testing backend health endpoints directly:"
+        for pod in $(kubectl get pods -l app=backend -o jsonpath='{.items[*].metadata.name}' 2>/dev/null || echo ""); do
+          if [ ! -z "$pod" ]; then
+            echo "--- Testing backend pod: $pod ---"
+            POD_IP=$(kubectl get pod $pod -o jsonpath='{.status.podIP}')
+            echo "Pod IP: $POD_IP"
+            
+            # Test common health check endpoints
+            kubectl exec $pod -- curl -f http://localhost:3000/health 2>/dev/null || echo "Health endpoint /health not responding"
+            kubectl exec $pod -- curl -f http://localhost:3000/ 2>/dev/null || echo "Root endpoint / not responding"
+            kubectl exec $pod -- curl -f http://localhost:8080/health 2>/dev/null || echo "Health endpoint on port 8080 not responding"
+            kubectl exec $pod -- curl -f http://localhost:8080/ 2>/dev/null || echo "Root endpoint on port 8080 not responding"
+            
+            # Check if the application is listening on expected ports
+            echo "Checking what ports are listening:"
+            kubectl exec $pod -- netstat -tlnp 2>/dev/null || kubectl exec $pod -- ss -tlnp 2>/dev/null || echo "Cannot check listening ports"
+          fi
+        done
+        
+        echo "4. Testing frontend health endpoints directly:"
+        for pod in $(kubectl get pods -l app=frontend -o jsonpath='{.items[*].metadata.name}' 2>/dev/null || echo ""); do
+          if [ ! -z "$pod" ]; then
+            echo "--- Testing frontend pod: $pod ---"
+            POD_IP=$(kubectl get pod $pod -o jsonpath='{.status.podIP}')
+            echo "Pod IP: $POD_IP"
+            
+            # Test common health check endpoints
+            kubectl exec $pod -- curl -f http://localhost:3000/ 2>/dev/null || echo "Root endpoint on port 3000 not responding"
+            kubectl exec $pod -- curl -f http://localhost:80/ 2>/dev/null || echo "Root endpoint on port 80 not responding"
+            kubectl exec $pod -- curl -f http://localhost:8080/ 2>/dev/null || echo "Root endpoint on port 8080 not responding"
+            
+            # Check if the application is listening on expected ports
+            echo "Checking what ports are listening:"
+            kubectl exec $pod -- netstat -tlnp 2>/dev/null || kubectl exec $pod -- ss -tlnp 2>/dev/null || echo "Cannot check listening ports"
+          fi
+        done
+        
+        echo "5. Current service endpoints:"
+        kubectl get endpoints -o wide
+        
+        echo "=== READINESS PROBE DIAGNOSIS COMPLETE ==="
+
     - name: Debug deployment issues
       if: always()
       run: |
@@ -321,7 +377,7 @@ jobs:
         kubectl get pods -o wide
         
         echo "3. Recent events:"
-        kubectl get events --sort-by=.metadata.creationTimestamp --tail=50
+        kubectl get events --sort-by=.metadata.creationTimestamp | tail -50
         
         echo "4. Describe backend deployment:"
         kubectl describe deployment backend-deployment || true
@@ -335,7 +391,7 @@ jobs:
             echo "--- Pod: $pod ---"
             kubectl describe pod $pod
             echo "--- Pod logs: $pod ---"
-            kubectl logs $pod --tail=50 || echo "No logs available"
+            kubectl logs $pod | tail -50 || echo "No logs available"
           fi
         done
         
@@ -345,7 +401,7 @@ jobs:
             echo "--- Pod: $pod ---"
             kubectl describe pod $pod
             echo "--- Pod logs: $pod ---"
-            kubectl logs $pod --tail=50 || echo "No logs available"
+            kubectl logs $pod | tail -50 || echo "No logs available"
           fi
         done
         
@@ -369,7 +425,7 @@ jobs:
           kubectl describe deployment backend-deployment
           
           echo "Backend pod logs:"
-          kubectl logs -l app=backend --tail=100 || echo "No backend logs available"
+          kubectl logs -l app=backend | tail -100 || echo "No backend logs available"
           
           # Don't exit here, continue to check frontend
         else
@@ -384,7 +440,7 @@ jobs:
           kubectl describe deployment frontend-deployment
           
           echo "Frontend pod logs:"
-          kubectl logs -l app=frontend --tail=100 || echo "No frontend logs available"
+          kubectl logs -l app=frontend | tail -100 || echo "No frontend logs available"
           
           exit 1
         else
