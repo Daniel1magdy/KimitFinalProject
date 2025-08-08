@@ -32,7 +32,7 @@ variable "node_group_scaling_config" {
     min_size     = number
   })
   default = {
-    desired_size = 6
+    desired_size = 8
     max_size     = 8
     min_size     = 1
   }
